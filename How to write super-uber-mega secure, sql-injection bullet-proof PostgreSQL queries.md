@@ -81,6 +81,12 @@ Note that `app_user` can do only that and nothing else. So if we attempt to perf
 select select_value('');select * from some_other_table;
 ```
 
+we will get as result:
+
+```
+ERROR:  permission denied 
+```
+
 And that is it, **SQL injection is now complete impossibility on your system.**
 
 Does that means that we are out of the woods yet. Well, no, not really. There are couple of things to have in mind:
