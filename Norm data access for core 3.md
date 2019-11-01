@@ -64,7 +64,7 @@ In a sense named tuples act like a class instance data model.
 
 We could go even step further and use unnamed tuples and give them names when we use them in a page, by using [tuple deconstruction](https://docs.microsoft.com/en-us/dotnet/csharp/deconstruct#deconstructing-a-tuple) feature like this:
 
-```csharp
+```cshtml
 <tbody>
     @foreach (var (id, userName, email) in Model.Service.GetUsers())
     {
