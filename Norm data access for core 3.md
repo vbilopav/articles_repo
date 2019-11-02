@@ -115,7 +115,7 @@ What are they?
 
 For me a s developer higher code cohesion counts. I don't want to navigate somewhere else, into another class, another file, or even another project in same cases - to work on a result of that query from that particular method.
 
-In my opinion **related code should be closer together as possible.**
+In my opinion - **related code should be closer together as possible.**
 
 This:
 
@@ -168,42 +168,25 @@ public IEnumerable<(int id, string userName, IEnumerable<string> roles)> GetUser
 
 this method transform users and their roles to composite structure where each user have its own enumerator for roles.
 
-#### 2. Performances. It's faster
+#### 2. Performances. It's a bit faster
 
+Yes it's bit faster, even from [`Dapper`](https://github.com/StackExchange/Dapper), but only when you use tuples approach described above.
 
+That is because tuples are mapped by position, not by name, name is irrelevant.
 
+[Performance tests](https://github.com/vbilopav/NoOrm.Net#performances) are showing that Dapper averages serialization of one million records in `02.859` seconds and Norm generates tuples in `02.239` seconds.
 
+Difference may be even higher since Norm can be used to avoid unneccessary iterations by building iterator for query results.
 
-Ok, se we do have same testing capabilities and same editor autocomplete features like with class instance models, so what are the benefits?
+For example, Dapper will typically iterate once to generate results and then typically you'll have to to another iteration to do something with those results, to generate json response for example. For contrast, Norm will create iterator, then you can build your expression tree and ideally **execute iteration only once.**
 
-In my opinion and in my personal experience as I've used in a couple of projects already - it is simply easier and even more elegant.
+> It's just smart way to avoid unneccessary iterations in your program.
 
-Does anyone truly enjoys typing all those various DTO classes?
+But, to be completely honest - that whole performance thing may  not matter that much.
 
-Especially when they are located in another file or even worse on another side of project, so you just have to constantly navigate around, that just hurts code cohesion and adds up to cognitive exertion.
+Because, it is noticeable when you start returning millions and millions of rows from database to a your database client.
 
-In my opinion it's much easier when related code (model in a form of a tuple and query that generates it) - is close as possible.
-
-And it's bit shorter too. Although, you have to bear in mind that those values are matched by position, not by name, so you have to type data types twice.
-
-As a consequence this approach is **fast as it gets** - even faster then Dapper. [Performance tests](https://github.com/vbilopav/NoOrm.Net#performances) are showing that Dapper averages serialization of one million records in 02.859 seconds and Norm tuples in 02.239 seconds.
-
-There is also one key difference. Dapper will iterate trough results immidatly when called to serialize them (and then you can start building your expression tree using `Linq` to transform the results) -  Norm will not.
-
-Norm will simply create iterator for later iteration, on which you can build your expression tree. And actual iteration will start only when you execute you actually execute it with `foraech` or `ToList` for example. That can save unnecessary data traversals over potentially big result sets.
-
-But, to be completely honest - performance thing does not matter so much. Because, it is noticeable when you start returning millions of rows to a client and if you are doing that, then you are doing something wrong (or just data very intense application).
-
-At the end of the day it may come to personal preferences if you still prefer traditional class instance models, although I suggest you try this approach since I found it to be more convenient.
-
-Luckily, Norm is extendible and one of those extensions is doing just that. So that service method for example above can look like this:
-
-```csharp
-public IEnumerable<User> GetUsers() =>
-    _connection.Read("select Id, Name, Email from NormUsers").Select<User>();
-```
-
-This example uses generic `Select` extension to create an iterator that will serialize to class instances when iteration is executed. Again, you can continue building your `Linq` expression tree to transform results to whatever - and iteration will not commence until you actually execute it with `foreach`, `ToList` or `Count`...
+> And if you are doing that - returning millions and millions of rows from database - then you are doing something wrong (or just data very intense application).
 
 ## Asynchronous operations
 
