@@ -64,7 +64,7 @@ In a sense named tuples act like a class instance data model.
 
 We could go even step further and use unnamed tuples and give them names when we use them in a page, by using [tuple deconstruction](https://docs.microsoft.com/en-us/dotnet/csharp/deconstruct#deconstructing-a-tuple) feature like this:
 
-```razor
+```csharp
 <tbody>
     @foreach (var (id, userName, email) in Model.Service.GetUsers())
     {
@@ -83,4 +83,29 @@ In my opinion and in my personal experience as I've used in a couple of projects
 
 Does anyone truly enjoys typing all those various DTO classes? Especially when they are located in another file or even worse on another side of project, so you just have to constantly navigate around, that just hurts code cohesion and adds up to cognitive exertion.
 
-And it's bit shorter too
+In my opinion it's much easier when related code (model in a form of a tuple and query that generates it) - is close as possible.
+
+And it's bit shorter too. Although, you have to bear in mind that those values are matched by position, not by name, so you have to type data types twice.
+
+As a consequence this approach is **fast as it gets** - even faster then Dapper. [Performance tests](https://github.com/vbilopav/NoOrm.Net#performances) are showing that Dapper averages serialization of one million records in 02.859 seconds and Norm tuples in 02.239 seconds.
+
+There is also one key difference. Dapper will iterate trough results immidatly when called to serialize them (and then you can start building your expression tree using `Linq` to transform the results) -  Norm will not.
+
+Norm will simply create iterator for later iteration, on which you can build your expression tree. And actual iteration will start only when you execute you actually execute it with `foraech` or `ToList` for example. That can save unnecessary data traversals over potentially big result sets.
+
+But, to be completely honest - performance thing does not matter so much. Because, it is noticeable when you start returning millions of rows to a client and if you are doing that, then you are doing something wrong (or just data very intense application).
+
+At the end of the day it may come to personal preferences if you still prefer traditional class instance models, although I suggest you try this approach since I found it to be more convenient.
+
+Luckily, Norm is extendible and one of those extensions is doing just that. So that service method for example above can look like this:
+
+```csharp
+public IEnumerable<User> GetUsers() =>
+    _connection.Read("select Id, Name, Email from NormUsers").Select<User>();
+```
+
+This example uses generic `Select` extension to create an iterator that will serialize to class instances when iteration is executed. Again, you can continue building your `Linq` expression tree to transform results to whatever - and iteration will not commence until you actually execute it with `foreach`, `ToList` or `Count`...
+
+## Asynchronous operations
+
+sdf
