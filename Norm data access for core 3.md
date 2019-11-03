@@ -286,4 +286,105 @@ public IAsyncEnumerable<(int id, string userName, string email)> Get() => Servic
 
 Note that in this case, again, `async` and `await` aren't necessary any more.
 
-But when we run
+But when we run this example this is the response that we will see:
+
+> `{}`
+
+Empty JSON.
+
+> That it is because new JSON serializer from .NET Core 3 still doesn't support name tuples.
+
+Not yet anyway. So, in order to have it work - we have to use class instance models:
+
+```csharp
+public IAsyncEnumerable<User> GetUsersAsync() =>
+    _connection.ReadAsync("select Id, Name, Email from NormUsers").Select<User>();
+```
+
+and
+
+```csharp
+[HttpGet]
+public IAsyncEnumerable<User> Get() => Service.GetUsersAsync();
+```
+
+This works as expected.
+
+Now, again, let's add small delay in our iterator expression tree to see does it really streams our response:
+
+```csharp
+public IAsyncEnumerable<User> GetUsersAsync() =>
+    _connection.ReadAsync("select Id, Name as UserName, Email from NormUsers").Select<User>().SelectAwait(async u =>
+    {
+        await Task.Delay(100);
+        return u;
+    });
+```
+
+No, not really. Response download will again commence only after all data has been written. So that means if we have 1000 records and each is generated in 100 milliseconds, response download will start only after 1000 * 100 milliseconds.
+
+We'll have to try something else...
+
+Lucky for us, .NET Core 3 is packed with exciting new tech.
+
+## **`Blazor`** pages
+
+`Blazor` is exciting new technology that comes with .NET Core 3. This version uses Blazor Server Side which is hosting model that updates your page asynchronously by utilizing web sockets via SignalR implementation.
+
+So, since it updates web pages asynchronously we might finally get lucky with Blazor. Let's try. 
+
+Add the code block in your page:
+
+```csharp
+@code {
+    List<User> Users = new List<User>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await foreach (var user in Service.GetUsersAsync())
+        {
+            users.Add(user);
+            this.StateHasChanged();
+        }
+    }
+}
+```
+
+This page code block defines property `Users` which will hold our results. Every time that property is changed page will be re-rendered to reflect changes in following area:
+
+```csharp
+<tbody>
+    @foreach (var user in Users)
+    {
+        <tr>
+            <td>@user.Id</td>
+            <td>@user.UserName</td>
+            <td>@user.Email</td>
+        </tr>
+    }
+</tbody>
+```
+
+Also, ye may notice that we have overridden `OnInitializedAsync` protected method:
+
+```csharp
+protected override async Task OnInitializedAsync()
+{
+    await foreach (var user in Service.GetUsersAsync())
+    {
+        users.Add(user);
+        this.StateHasChanged();
+    }
+}
+```
+
+This will be executed after page initialization and we can use that to stream into our reactive property. And since it is in this special initialization event - we have to explicitly inform the page that state has been changed with additional `StateHasChanged` call.
+
+And that's it, this looks good, this should work. And really, when we open this page we can see that table is populated progressively, one by one. So it seems that we've finally achieved asynchronous streaming directly from our database to our page. It only seems so at first.
+
+That is, until we add small delay again to our data service method.
+
+What will happen in that case is real rendering of the page will only start when `OnInitializedAsync` method is completed. State changes are buffered after the execution of that method. So page will first await for that execution and then start rendering asynchronously.
+
+Bummer. That's not exactly what I was hoping to achieve.
+
