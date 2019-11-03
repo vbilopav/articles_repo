@@ -460,3 +460,14 @@ Next, we'll have to build a web page that connects to our streaming hub and with
 })();
 </script>
 ```
+
+Yay! With a little help of JavaScript - finally it works as expected:
+
+Data is streamed properly for our database to our web page. It doesn't matter now if we add delay ot our data service, stream will start immidatly. If we add, let's say a one second delay, new row will appear on a web page every second. As soon as database returns data row it sent down the web socket and into our web page where is rendered immidatly.
+
+It's a beautiful thing to watch, it really is, almost brought a tear to my eye ;)
+
+So that is it, I hope I have managed to demonstrate how Norm data access can be useful to anyone developing data application with .NET Core 3 as it is useful to me, and also how to asynchronously stream your data from database to a web page and still being able to keep editor features, models, testability and all of those wonderful things we used to have.
+
+If you have any comment, suggestion or criticisms or anything to add - please let me know in comments down bellow.
+
