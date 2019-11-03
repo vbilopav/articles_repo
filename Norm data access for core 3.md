@@ -388,3 +388,75 @@ What will happen in that case is real rendering of the page will only start when
 
 Bummer. That's not exactly what I was hoping to achieve.
 
+But, there is still one option left. Since Blazor is using `WebSockets` - maybe we can utilize them too, to finally have real asynchronous streaming from database to web page.
+
+## **`SignalR`** streaming
+
+`SignalR` is Microsoft implementation of `WebSockets` technology and apparently it does support streaming.
+
+So, first, lets create `SignalR` hub that returns our `IAsyncEnumerable`:
+
+```csharp
+public class UsersHub : Hub
+{
+    public UsersService Service { get; };
+
+    public UsersHub(UsersService service)
+    {
+        Service = service;
+    }
+
+    public IAsyncEnumerable<User> Users() => Service.GetUsersAsync();
+}
+```
+
+Next, we'll have to build a web page that connects to our streaming hub and with simple client renderer. Entire Razor web page:
+
+```html
+@page
+@{
+    Layout = "_Layout.cshtml";
+}
+
+<h1>Razor Page Norm data access example</h1>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Id</th>
+            <th>Username</th>
+            <th>Email</th>
+        </tr>
+    </thead>
+    <tbody id="table-body">
+    <!-- content -->
+    </tbody>
+</table>
+
+<template id="row-template">
+    <td>${this.id}</td>
+    <td>${this.userName}</td>
+    <td>${this.email}</td>
+</template>
+
+<script src="~/js/signalr/dist/browser/signalr.min.js"></script>
+
+<script>
+(async function () {
+    const
+        connection = new signalR.HubConnectionBuilder().withUrl("/usersHub").build(),
+        tableBody = document.getElementById("table-body"),
+        template = document.getElementById("row-template").innerHTML;
+
+    await connection.start();
+
+    connection.stream("Users").subscribe({
+        next: item => {
+            let tr = document.createElement("tr");
+            tr.innerHTML = new Function('return `' + template + '`').call(item);
+            tableBody.appendChild(tr);
+        }
+    });
+})();
+</script>
+```
